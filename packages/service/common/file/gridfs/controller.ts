@@ -4,6 +4,12 @@ import fsp from 'fs/promises';
 import fs from 'fs';
 import { DatasetFileSchema } from '@fastgpt/global/core/dataset/type';
 import { MongoFileSchema } from './schema';
+import { detectFileEncoding } from '@fastgpt/global/common/file/tools';
+import { CommonErrEnum } from '@fastgpt/global/common/error/code/common';
+import { MongoRawTextBuffer } from '../../buffer/rawText/schema';
+import { readRawContentByFileBuffer } from '../read/utils';
+import { gridFsStream2Buffer, stream2Encoding } from './utils';
+import { addLog } from '../../system/log';
 
 export function getGFSCollection(bucket: `${BucketNameEnum}`) {
   MongoFileSchema;
@@ -39,8 +45,11 @@ export async function uploadFile({
   const stats = await fsp.stat(path);
   if (!stats.isFile()) return Promise.reject(`${path} is not a file`);
 
+  const { stream: readStream, encoding } = await stream2Encoding(fs.createReadStream(path));
+
   metadata.teamId = teamId;
   metadata.tmbId = tmbId;
+  metadata.encoding = encoding;
 
   // create a gridfs bucket
   const bucket = getGridBucket(bucketName);
@@ -52,7 +61,7 @@ export async function uploadFile({
 
   // save to gridfs
   await new Promise((resolve, reject) => {
-    fs.createReadStream(path)
+    readStream
       .pipe(stream as any)
       .on('finish', resolve)
       .on('error', reject);
@@ -111,3 +120,71 @@ export async function getDownloadStream({
 
   return bucket.openDownloadStream(new Types.ObjectId(fileId));
 }
+
+export const readFileContentFromMongo = async ({
+  teamId,
+  bucketName,
+  fileId,
+  isQAImport = false
+}: {
+  teamId: string;
+  bucketName: `${BucketNameEnum}`;
+  fileId: string;
+  isQAImport?: boolean;
+}): Promise<{
+  rawText: string;
+  filename: string;
+}> => {
+  // read buffer
+  const fileBuffer = await MongoRawTextBuffer.findOne({ sourceId: fileId }).lean();
+  if (fileBuffer) {
+    return {
+      rawText: fileBuffer.rawText,
+      filename: fileBuffer.metadata?.filename || ''
+    };
+  }
+
+  const [file, fileStream] = await Promise.all([
+    getFileById({ bucketName, fileId }),
+    getDownloadStream({ bucketName, fileId })
+  ]);
+  // console.log('get file stream', Date.now() - start);
+  if (!file) {
+    return Promise.reject(CommonErrEnum.fileNotFound);
+  }
+
+  const extension = file?.filename?.split('.')?.pop()?.toLowerCase() || '';
+
+  const start = Date.now();
+  const fileBuffers = await gridFsStream2Buffer(fileStream);
+  addLog.debug('get file buffer', { time: Date.now() - start });
+
+  const encoding = file?.metadata?.encoding || detectFileEncoding(fileBuffers);
+
+  const { rawText } = await readRawContentByFileBuffer({
+    extension,
+    isQAImport,
+    teamId,
+    buffer: fileBuffers,
+    encoding,
+    metadata: {
+      relatedId: fileId
+    }
+  });
+
+  // < 14M
+  if (fileBuffers.length < 14 * 1024 * 1024 && rawText.trim()) {
+    MongoRawTextBuffer.create({
+      sourceId: fileId,
+      rawText,
+      metadata: {
+        filename: file.filename
+      }
+    });
+  }
+
+  return {
+    rawText,
+    filename: file.filename
+  };
+};

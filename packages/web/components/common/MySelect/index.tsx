@@ -7,27 +7,41 @@ import {
   useDisclosure,
   MenuButton,
   Box,
-  css
+  css,
+  Flex
 } from '@chakra-ui/react';
 import type { ButtonProps, MenuItemProps } from '@chakra-ui/react';
 import { ChevronDownIcon } from '@chakra-ui/icons';
+import { useLoading } from '../../../hooks/useLoading';
+import MyIcon from '../Icon';
 
 export type SelectProps = ButtonProps & {
-  value?: string;
+  value?: string | number;
   placeholder?: string;
   list: {
     alias?: string;
     label: string | React.ReactNode;
-    value: string;
+    description?: string;
+    value: string | number;
   }[];
+  isLoading?: boolean;
   onchange?: (val: any) => void;
 };
 
 const MySelect = (
-  { placeholder, value, width = '100%', list, onchange, ...props }: SelectProps,
+  {
+    placeholder,
+    value,
+    width = '100%',
+    list = [],
+    onchange,
+    isLoading = false,
+    ...props
+  }: SelectProps,
   selectRef: any
 ) => {
   const ref = useRef<HTMLButtonElement>(null);
+  const { Loading } = useLoading();
   const menuItemStyles: MenuItemProps = {
     borderRadius: 'sm',
     py: 2,
@@ -78,10 +92,14 @@ const MySelect = (
             : {})}
           {...props}
         >
-          {selectItem?.alias || selectItem?.label || placeholder}
+          <Flex alignItems={'center'}>
+            {isLoading && <MyIcon mr={2} name={'common/loading'} w={'16px'} />}
+            {selectItem?.alias || selectItem?.label || placeholder}
+          </Flex>
         </MenuButton>
 
         <MenuList
+          className={props.className}
           minW={(() => {
             const w = ref.current?.clientWidth;
             if (w) {
@@ -108,18 +126,27 @@ const MySelect = (
               {...menuItemStyles}
               {...(value === item.value
                 ? {
-                    color: 'primary.500',
-                    bg: 'myWhite.300'
+                    color: 'primary.600',
+                    bg: 'myGray.100'
                   }
-                : {})}
+                : {
+                    color: 'myGray.900'
+                  })}
               onClick={() => {
                 if (onchange && value !== item.value) {
                   onchange(item.value);
                 }
               }}
               whiteSpace={'pre-wrap'}
+              fontSize={'sm'}
+              display={'block'}
             >
-              {item.label}
+              <Box>{item.label}</Box>
+              {item.description && (
+                <Box color={'myGray.500'} fontSize={'xs'}>
+                  {item.description}
+                </Box>
+              )}
             </MenuItem>
           ))}
         </MenuList>

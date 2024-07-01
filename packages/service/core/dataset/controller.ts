@@ -1,8 +1,11 @@
 import { CollectionWithDatasetType, DatasetSchemaType } from '@fastgpt/global/core/dataset/type';
 import { MongoDatasetCollection } from './collection/schema';
 import { MongoDataset } from './schema';
-import { delCollectionAndRelatedSources } from './collection/controller';
+import { delCollectionRelatedSource } from './collection/controller';
 import { ClientSession } from '../../common/mongo';
+import { MongoDatasetTraining } from './training/schema';
+import { MongoDatasetData } from './data/schema';
+import { deleteDatasetDataVector } from '../../common/vectorStore/controller';
 
 /* ============= dataset ========== */
 /* find all datasetId by top datasetId */
@@ -79,8 +82,30 @@ export async function delDatasetRelevantData({
       teamId,
       datasetId: { $in: datasetIds }
     },
-    '_id teamId fileId metadata'
+    '_id teamId datasetId fileId metadata'
   ).lean();
 
-  await delCollectionAndRelatedSources({ collections, session });
+  // delete training data
+  await MongoDatasetTraining.deleteMany({
+    teamId,
+    datasetId: { $in: datasetIds }
+  });
+
+  // image and file
+  await delCollectionRelatedSource({ collections, session });
+
+  // delete dataset.datas
+  await MongoDatasetData.deleteMany({ teamId, datasetId: { $in: datasetIds } }, { session });
+
+  // delete collections
+  await MongoDatasetCollection.deleteMany(
+    {
+      teamId,
+      datasetId: { $in: datasetIds }
+    },
+    { session }
+  );
+
+  // no session delete: delete files, vector data
+  await deleteDatasetDataVector({ teamId, datasetIds });
 }

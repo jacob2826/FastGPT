@@ -1,13 +1,17 @@
-### FastGPT V4.7
+### FastGPT V4.8.5
 
-1. 新增 - 工具调用模块，可以让LLM模型根据用户意图，动态的选择其他模型或插件执行。
-2. 新增 - 分类和内容提取支持 functionCall 模式。部分模型支持 functionCall 不支持 ToolCall，也可以使用了。需要把 LLM 模型配置文件里的 `functionCall` 设置为 `true`， `toolChoice`设置为 `false`。如果 `toolChoice` 为 true，会走 tool 模式。
-3. 新增 - HTTP插件，可实现OpenAPI快速生成插件。
-4. 优化 - 高级编排性能。
-5. 优化 - AI模型选择。
-6. 优化 - 手动输入知识库弹窗。
-7. 优化 - 变量输入弹窗。
-8. 优化 - 浏览器读取文件自动推断编码，减少乱码情况。
-9. [点击查看高级编排介绍文档](https://doc.fastgpt.in/docs/workflow/intro)
-10. [使用文档](https://doc.fastgpt.in/docs/intro/)
-11. [点击查看商业版](https://doc.fastgpt.in/docs/commercial/)
+1. 新增 - 应用使用新权限系统。
+2. 新增 - 应用支持文件夹。
+3. 优化 - 文本分割增加连续换行、制表符清除，避免大文本性能问题。
+4. 重要修复 - 修复系统插件运行池数据污染问题，由于从内存获取，会导致全局污染。
+5. 修复 - Debug 模式下，相同 source 和 target 内容，导致连线显示异常。
+6. 修复 - 定时执行初始化错误。
+7. 修复 - 应用调用传参异常。
+8. 修复 - ctrl + cv 复杂节点时，nodeId错误。 
+9. 调整组件库全局theme。
+
+------
+
+- [点击查看高级编排介绍文档](https://doc.fastgpt.in/docs/workflow/intro)
+- [使用文档](https://doc.fastgpt.in/docs/intro/)
+- [点击查看商业版](https://doc.fastgpt.in/docs/commercial/)
